@@ -1,4 +1,8 @@
 pub mod ecs;
+use crate::ametheed::ui::colored_box::UiColorBox;
+use crate::ametheed::Interactable;
+use crate::ametheed::UiText;
+use crate::ametheed::ui::transform::UiTransform;
 use crate::ametheed::ui::button::UiButtonBuilder;
 use crate::ametheed::ui::button::builder::UiButtonBuilderResources;
 use crate::ametheed::UiButton;
@@ -29,17 +33,15 @@ pub struct Model {
 
 impl Model {
     fn render(&mut self) {
-        let rends = self.specs.inner.read_storage::<Renderable>();
-        let positions = self.specs.inner.read_storage::<Position>();
-        let cols = self.specs.inner.read_storage::<ecs::components::Color>();
-        for (_rend, pos) in (&rends, &positions).join() {}
+        let xform = self.specs.inner.read_storage::<UiTransform>();
+        let text = self.specs.inner.read_storage::<UiText>();
         let canvas = self.canvas.get().expect("get canvas element");
         let ctx = seed::canvas_context_2d(&canvas);
-        for (_rend, pos, col) in (&rends, &positions, &cols).join() {
+        for (xform, text) in (&xform, &text).join() {
             ctx.begin_path();
-            let x = pos.x;
-            let y = pos.y;
-            ctx.set_fill_style(&JsValue::from_str(&col.html_str()));
+            let x = xform.local_x;
+            let y = xform.local_y;
+            ctx.set_fill_style(&JsValue::from_str(&xform.));
             ctx.arc(
                 x as f64,
                 y as f64,
@@ -165,50 +167,41 @@ pub fn update(msg: Message, mdl: &mut Model, orders: &mut impl Orders<Message>) 
             orders.perform_cmd(async { CGGraph(fetch_cg_graph().await) });
         }
         CGGraph(Ok(res)) => {
-            let mut gr = DiGraph::<UiButton, f32>::new();
+            let mut gr = DiGraph::<CGNode, f32>::new();
             let mut idx_map: HashMap<usize, NodeIndex> = HashMap::with_capacity(res.0.len());
-            let but_b_res = UiButtonBuilderResource {
-                id: 0,
-                background: ,
-                mouse_reactive: ,
-                parent: ,
-                text: ,
-                transform: ,
-                button_widgets: ,
-                button_action_retrigger: ,
-                selecables: ,
-            };
-
             let row_count: u32 = (WIDTH as u32) / (RAD * 2);
             for (i, node) in res.0.into_iter().enumerate() {
-                let x = (RAD + (i as u32 % (row_count as u32)) * (RAD * 2)).into();
-                let y = (RAD + (i as u32 / (row_count as u32)) * (RAD * 2)).into();
-                let mut but_builder = UiButtonBuilder::new(i);
+                let x = (RAD + (i as u32 % (row_count as u32)) * (RAD * 2)) as f32;
+                let y = (RAD + (i as u32 / (row_count as u32)) * (RAD * 2)) as f32;
+                let xform = UiTransform::new(
+                    i.to_string(),
+                    Anchor::Middle,
+                    Anchor::Middle,
+                    x,
+                    y,
+                    0.,
+                    (RAD * 2) as f32,
+                    (RAD * 2) as f32,
+                );
                 let r =  255 / (i as u8 + 1);
                 let g =  255 - (255 / (i as u8 + 1));
                 let b =  255;
-                let but = but_builder
-                    .with_text(format!("id: {}", i))
-                    .with_position(x, y)
-                    .with_size(RAD as f32, RAD as f32)
-                    .with_font_size((RAD / 2) as f32)
-                    .with_text_color([(255-r).into(), (255-g).into(), (255-b).into(), 255.])
-                    .with_align(Anchor::MiddleLeft)
+                let col = crate::ametheed::ui::colored_box::UiColorBox::SolidColor([r.into(),g.into(),b as f32,255.]);
+                let text = UiText::new(
+                    i.to_string(),
+                    [(255 - r).into(), (255 - g).into(), (255 - b) as f32, 255.],
+                    RAD as f32 / 2.,
+                    crate::ametheed::ui::text::LineMode::Single,
+                    Anchor::Middle
+
+                );
+                mdl.specs.inner.create_entity()
+                               .with(xform)
+                               .with(text)
+                               .with(Interactable)
                     .build();
-
-                let g_node =  {
-                    color: Color {
-                        r: 255 / (i as u8 + 1),
-                        g: 255 - (255 / (i as u8 + 1)),
-                        b: 255,
-                    },
-                    pos_x: x,
-                    pos_y: y,
-                    cg: node,
-                };
-
-                let idx = gr.add_node(g_node);
-                idx_map.insert(gr.raw_nodes()[idx.index()].weight.cg.id, idx);
+                // let idx = gr.add_node(g_node);
+                // idx_map.insert(gr.raw_nodes()[idx.index()].weight.cg.id, idx);
             }
             for edge in res.1.into_iter() {
                 gr.add_edge(
@@ -217,24 +210,24 @@ pub fn update(msg: Message, mdl: &mut Model, orders: &mut impl Orders<Message>) 
                     edge.weight,
                 );
             }
-            mdl.pet = gr;
-            for node in mdl.pet.raw_nodes() {
-                let node = &node.weight;
-                mdl.specs
-                    .inner
-                    .create_entity()
-                    .with(Position {
-                        x: node.pos_x as f32,
-                        y: node.pos_y as f32,
-                    })
-                    .with(ecs::components::Color {
-                        r: node.color.r,
-                        g: node.color.g,
-                        b: node.color.b,
-                    })
-                    .with(Renderable)
-                    .build();
-            }
+            // mdl.pet = gr;
+            // for node in mdl.pet.raw_nodes() {
+            //     let node = &node.weight;
+            //     mdl.specs
+            //         .inner
+            //         .create_entity()
+            //         .with(Position {
+            //             x: node.pos_x as f32,
+            //             y: node.pos_y as f32,
+            //         })
+            //         .with(ecs::components::Color {
+            //             r: node.color.r,
+            //             g: node.color.g,
+            //             b: node.color.b,
+            //         })
+            //         .with(Renderable)
+            //         .build();
+            // }
             log!(mdl.pet.raw_nodes());
             orders.after_next_render(Message::OnTick);
         }
