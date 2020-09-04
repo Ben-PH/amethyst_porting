@@ -41,5 +41,4 @@ pub use ui::button::UiButton;
 pub use ui::button::UiButtonAction;
 
 // use assets::storage::Handle;
-use ui::transform::UiTransform;
-
+pub use ui::transform::UiTransform;

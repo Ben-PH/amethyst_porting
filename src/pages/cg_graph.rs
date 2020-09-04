@@ -35,13 +35,17 @@ impl Model {
     fn render(&mut self) {
         let xform = self.specs.inner.read_storage::<UiTransform>();
         let text = self.specs.inner.read_storage::<UiText>();
+        let col = self.specs.inner.read_storage::<UiColorBox>();
         let canvas = self.canvas.get().expect("get canvas element");
         let ctx = seed::canvas_context_2d(&canvas);
-        for (xform, text) in (&xform, &text).join() {
+        for (xform, text, col) in (&xform, &text, &col).join() {
             ctx.begin_path();
             let x = xform.local_x;
             let y = xform.local_y;
-            ctx.set_fill_style(&JsValue::from_str(&xform.));
+            match col {
+                UiColorBox::SolidColor(col) => ctx.set_fill_style(&JsValue::from_str(&col.html_str())),
+            }
+
             ctx.arc(
                 x as f64,
                 y as f64,
@@ -186,7 +190,7 @@ pub fn update(msg: Message, mdl: &mut Model, orders: &mut impl Orders<Message>) 
                 let r =  255 / (i as u8 + 1);
                 let g =  255 - (255 / (i as u8 + 1));
                 let b =  255;
-                let col = crate::ametheed::ui::colored_box::UiColorBox::SolidColor([r.into(),g.into(),b as f32,255.]);
+                let col = crate::ametheed::ui::colored_box::UiColorBox::SolidColor(Color{r,g,b});
                 let text = UiText::new(
                     i.to_string(),
                     [(255 - r).into(), (255 - g).into(), (255 - b) as f32, 255.],
@@ -198,7 +202,8 @@ pub fn update(msg: Message, mdl: &mut Model, orders: &mut impl Orders<Message>) 
                 mdl.specs.inner.create_entity()
                                .with(xform)
                                .with(text)
-                               .with(Interactable)
+                               .with(col)
+                               // .with(Interactable)
                     .build();
                 // let idx = gr.add_node(g_node);
                 // idx_map.insert(gr.raw_nodes()[idx.index()].weight.cg.id, idx);

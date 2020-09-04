@@ -1,9 +1,10 @@
 
+use crate::ametheed::Color;
 use specs::DenseVecStorage;
 use specs::Component;
 
 pub enum UiColorBox {
-    SolidColor([f32; 4]),
+    SolidColor(Color),
 }
 
 impl Component for UiColorBox {
